@@ -47,6 +47,7 @@ export function DashboardHeader({ userEmail = "user@example.com" }: DashboardHea
         {/* Left Side - Company Logo */}
         <div className="flex items-center h-full">
           {!imageError ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src="/securelytix-logo.svg"
               alt="Securelytix Logo"

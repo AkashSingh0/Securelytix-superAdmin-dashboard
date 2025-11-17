@@ -14,7 +14,7 @@ export default function MiscellaneousPage() {
             </div>
             <CardTitle className="text-3xl mb-2">Miscellaneous</CardTitle>
             <CardDescription className="text-lg">
-              We're working hard to bring you this feature.
+              We&apos;re working hard to bring you this feature.
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
