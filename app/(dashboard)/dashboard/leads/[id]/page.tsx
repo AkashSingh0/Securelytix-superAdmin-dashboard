@@ -1,96 +1,596 @@
 "use client"
 
 import { useParams, useRouter } from "next/navigation"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Plus, Trash2, ArrowLeft } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Plus, Trash2, ArrowLeft, Loader2 } from "lucide-react"
 
-const mockLeads = [
-  { 
-    id: 1, 
-    name: "John Doe", 
-    email: "john@example.com", 
-    company: "Acme Corp", 
-    status: "New",
-    phone: "+1 (555) 123-4567",
-    position: "CEO",
-    source: "Website",
-    createdAt: "2024-01-15",
-    notes: "Interested in enterprise plan. Follow up next week."
-  },
-  { 
-    id: 2, 
-    name: "Jane Smith", 
-    email: "jane@example.com", 
-    company: "Tech Inc", 
-    status: "Contacted",
-    phone: "+1 (555) 234-5678",
-    position: "CTO",
-    source: "Referral",
-    createdAt: "2024-01-14",
-    notes: "Very responsive. Scheduled demo."
-  },
-  { 
-    id: 3, 
-    name: "Bob Johnson", 
-    email: "bob@example.com", 
-    company: "StartupXYZ", 
-    status: "Qualified",
-    phone: "+1 (555) 345-6789",
-    position: "Founder",
-    source: "LinkedIn",
-    createdAt: "2024-01-13",
-    notes: "Qualified lead. Ready for proposal."
-  },
-  { 
-    id: 4, 
-    name: "Alice Williams", 
-    email: "alice@example.com", 
-    company: "BigCo", 
-    status: "New",
-    phone: "+1 (555) 456-7890",
-    position: "VP Sales",
-    source: "Website",
-    createdAt: "2024-01-12",
-    notes: "Initial contact made."
-  },
-  { 
-    id: 5, 
-    name: "Charlie Brown", 
-    email: "charlie@example.com", 
-    company: "SmallBiz", 
-    status: "Contacted",
-    phone: "+1 (555) 567-8901",
-    position: "Owner",
-    source: "Email Campaign",
-    createdAt: "2024-01-11",
-    notes: "Follow up required."
-  },
-]
+// API base URL
+const API_BASE_URL = "https://website-backend.securelytix.tech/api/v1" // Production API
 
-type Note = {
-  id: number
-  text: string
-  timestamp: string
+interface Note {
+  content: string
+  created_at?: string
+  created_by?: string
+  created_by_name?: string
 }
+
+interface StatusHistory {
+  status: string
+  changed_at: string
+}
+
+interface Lead {
+  status: string
+  id: string
+  first_name: string
+  last_name: string | null
+  email: string
+  company_name: string
+  country_code: string
+  contact_number: string
+  description: string
+  terms_accepted: boolean
+  status_history?: StatusHistory[]
+  notes: Note[]
+  created_at: string
+  updated_at: string
+}
+
+const STATUS_OPTIONS = ["new", "pending", "contacted", "completed"]
 
 export default function LeadDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const leadId = parseInt(params.id as string)
+  const leadId = params.id as string
   
-  const [leadNotes, setLeadNotes] = useState<Record<number, Note[]>>({
-    1: [{ id: 1, text: "Initial contact made. Very interested.", timestamp: new Date().toLocaleString() }],
-    2: [{ id: 1, text: "Follow up scheduled for next week.", timestamp: new Date().toLocaleString() }],
-  })
+  const [lead, setLead] = useState<Lead | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [newNote, setNewNote] = useState("")
+  const [addingNote, setAddingNote] = useState(false)
+  const [updatingNotes, setUpdatingNotes] = useState(false)
+  const [updatingStatus, setUpdatingStatus] = useState(false)
+  const [selectedStatus, setSelectedStatus] = useState<string>("")
+  const [statusUpdateMessage, setStatusUpdateMessage] = useState<{ type: "success" | "error"; message: string } | null>(null)
 
-  const lead = mockLeads.find(l => l.id === leadId)
-  const currentNotes = leadNotes[leadId] || []
+  // Fetch lead data from API
+  useEffect(() => {
+    const fetchLead = async () => {
+      if (!leadId) return
 
-  if (!lead) {
+      setLoading(true)
+      setError(null)
+
+      try {
+        const url = `${API_BASE_URL}/leads/${leadId}`
+        console.log("Fetching lead from:", url)
+        
+        const response = await fetch(url, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+          },
+          mode: "cors",
+        })
+
+        console.log("Response status:", response.status)
+
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error("API Error Response:", errorText)
+          let errorData
+          try {
+            errorData = JSON.parse(errorText)
+          } catch {
+            errorData = { detail: errorText || response.statusText }
+          }
+          throw new Error(errorData.detail || `Failed to fetch lead: ${response.statusText}`)
+        }
+
+        const responseText = await response.text()
+        console.log("API Response Text:", responseText)
+        
+        let data: Lead
+        try {
+          data = JSON.parse(responseText)
+        } catch (parseError) {
+          console.error("Failed to parse JSON response:", parseError)
+          throw new Error(`Invalid JSON response from API: ${responseText.substring(0, 100)}`)
+        }
+        
+        // Ensure notes array exists
+        if (!data.notes) {
+          data.notes = []
+        }
+        // Ensure status_history array exists
+        if (!data.status_history) {
+          data.status_history = []
+        }
+        setLead(data)
+        setSelectedStatus(data.status || "new")
+      } catch (err) {
+        console.error("Error fetching lead:", err)
+        setError(err instanceof Error ? err.message : "Failed to fetch lead")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchLead()
+  }, [leadId])
+
+  // Update notes via API
+  const handleAddNote = async () => {
+    if (!newNote.trim() || !lead) return
+
+    setAddingNote(true)
+    setError(null)
+    try {
+      // Get auth token and user info from localStorage
+      const authToken = typeof window !== "undefined" ? localStorage.getItem("authToken") : null
+      const userEmail = typeof window !== "undefined" ? localStorage.getItem("userEmail") : null
+      const userName = typeof window !== "undefined" ? localStorage.getItem("userName") : null
+      
+      // Validate that user email exists (required for created_by field)
+      if (!userEmail) {
+        throw new Error("User email is required to add notes. Please log in again.")
+      }
+
+      // Use production API for notes
+      const url = `${API_BASE_URL}/leads/${leadId}/notes`
+      console.log("Adding note at:", url)
+
+      const headers: HeadersInit = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      }
+
+      // Add Authorization header if token exists
+      if (authToken) {
+        headers["Authorization"] = `Bearer ${authToken}`
+      }
+
+      // Prepare payload with ONLY the new note (not all existing notes)
+      const notesPayload = [
+        {
+          content: newNote.trim(),
+          created_by: userEmail,
+          ...(userName && { created_by_name: userName }),
+        },
+      ]
+
+      // Call API to add only the new note
+      const response = await fetch(url, {
+        method: "POST",
+        headers,
+        mode: "cors",
+        body: JSON.stringify({
+          notes: notesPayload,
+        }),
+      })
+
+      console.log("Add note response status:", response.status)
+      const responseText = await response.text()
+      console.log("Add note response:", responseText)
+
+      if (!response.ok) {
+        let errorData
+        try {
+          errorData = JSON.parse(responseText)
+        } catch {
+          errorData = { detail: responseText || response.statusText }
+        }
+        throw new Error(errorData.detail || `Failed to update notes: ${response.statusText}`)
+      }
+
+      let data
+      try {
+        data = JSON.parse(responseText)
+      } catch {
+        data = {}
+      }
+      
+      // Update local state with API response
+      if (data.data) {
+        const updatedLead = data.data
+        // Ensure notes array exists
+        if (!updatedLead.notes) {
+          updatedLead.notes = []
+        }
+        if (!updatedLead.status_history) {
+          updatedLead.status_history = []
+        }
+        setLead(updatedLead)
+      } else {
+        // If response doesn't include data, refresh from API
+        const refreshUrl = `${API_BASE_URL}/leads/${leadId}`
+        const refreshResponse = await fetch(refreshUrl, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+          },
+          mode: "cors",
+        })
+
+        if (refreshResponse.ok) {
+          const refreshText = await refreshResponse.text()
+          let refreshedData: Lead
+          try {
+            refreshedData = JSON.parse(refreshText)
+          } catch {
+            console.error("Failed to parse refresh response")
+            return
+          }
+          
+          if (!refreshedData.notes) {
+            refreshedData.notes = []
+          }
+          if (!refreshedData.status_history) {
+            refreshedData.status_history = []
+          }
+          setLead(refreshedData)
+        }
+      }
+      
+      setNewNote("")
+    } catch (err) {
+      console.error("Error adding note:", err)
+      setError(err instanceof Error ? err.message : "Failed to add note")
+    } finally {
+      setAddingNote(false)
+    }
+  }
+
+  // Delete note - fetch updated notes from API after deletion
+  const handleDeleteNote = async (noteIndex: number) => {
+    if (!lead) return
+
+    setUpdatingNotes(true)
+    setError(null)
+    try {
+      // Get auth token from localStorage
+      const authToken = typeof window !== "undefined" ? localStorage.getItem("authToken") : null
+      
+      // Note: The API doesn't have a DELETE endpoint, so we need to send all remaining notes
+      // Remove the note at the specified index
+      const updatedNotes = (lead.notes || []).filter((_, index) => index !== noteIndex)
+
+      // Use production API for notes
+      const url = `${API_BASE_URL}/leads/${leadId}/notes`
+      console.log("Deleting note at:", url)
+
+      const headers: HeadersInit = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      }
+
+      // Add Authorization header if token exists
+      if (authToken) {
+        headers["Authorization"] = `Bearer ${authToken}`
+      }
+
+      // Prepare notes payload with all remaining notes (created_by is required for ALL notes)
+      const userEmail = typeof window !== "undefined" ? localStorage.getItem("userEmail") : null
+      if (!userEmail) {
+        throw new Error("User email is required. Please log in again.")
+      }
+
+      const notesPayload = updatedNotes.map(note => {
+        const payload: { content: string; created_by: string; created_by_name?: string } = {
+          content: note.content,
+          // created_by is required - use note's created_by if exists, otherwise use current user's email as fallback
+          created_by: note.created_by || userEmail,
+        }
+        // Include created_by_name if available
+        if (note.created_by_name) {
+          payload.created_by_name = note.created_by_name
+        }
+        return payload
+      })
+
+      // Call API to update notes (send all remaining notes)
+      const response = await fetch(url, {
+        method: "POST",
+        headers,
+        mode: "cors",
+        body: JSON.stringify({
+          notes: notesPayload,
+        }),
+      })
+
+      console.log("Delete note response status:", response.status)
+      const responseText = await response.text()
+      console.log("Delete note response:", responseText)
+
+      if (!response.ok) {
+        let errorData
+        try {
+          errorData = JSON.parse(responseText)
+        } catch {
+          errorData = { detail: responseText || response.statusText }
+        }
+        throw new Error(errorData.detail || `Failed to update notes: ${response.statusText}`)
+      }
+
+      let data
+      try {
+        data = JSON.parse(responseText)
+      } catch {
+        data = {}
+      }
+      
+      // Update local state with API response
+      if (data.data) {
+        const updatedLead = data.data
+        // Ensure notes array exists
+        if (!updatedLead.notes) {
+          updatedLead.notes = []
+        }
+        if (!updatedLead.status_history) {
+          updatedLead.status_history = []
+        }
+        setLead(updatedLead)
+      } else {
+        // If response doesn't include data, refresh from API
+        const refreshUrl = `${API_BASE_URL}/leads/${leadId}`
+        const refreshResponse = await fetch(refreshUrl, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+          },
+          mode: "cors",
+        })
+
+        if (refreshResponse.ok) {
+          const refreshText = await refreshResponse.text()
+          let refreshedData: Lead
+          try {
+            refreshedData = JSON.parse(refreshText)
+          } catch {
+            console.error("Failed to parse refresh response")
+            return
+          }
+          
+          if (!refreshedData.notes) {
+            refreshedData.notes = []
+          }
+          if (!refreshedData.status_history) {
+            refreshedData.status_history = []
+          }
+          setLead(refreshedData)
+        }
+      }
+    } catch (err) {
+      console.error("Error deleting note:", err)
+      setError(err instanceof Error ? err.message : "Failed to delete note")
+    } finally {
+      setUpdatingNotes(false)
+    }
+  }
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
+
+  // Get full name
+  const getFullName = (lead: Lead) => {
+    return lead.last_name 
+      ? `${lead.first_name} ${lead.last_name}` 
+      : lead.first_name
+  }
+
+  // Get full phone number
+  const getFullPhone = (lead: Lead) => {
+    return `${lead.country_code} ${lead.contact_number}`
+  }
+
+  // Get status badge color
+  const getStatusColor = (status: string | undefined | null) => {
+    if (!status) {
+      return "bg-gray-100 text-gray-800"
+    }
+    switch (status.toLowerCase()) {
+      case "new":
+        return "bg-blue-100 text-blue-800"
+      case "pending":
+        return "bg-yellow-100 text-yellow-800"
+      case "contacted":
+        return "bg-purple-100 text-purple-800"
+      case "completed":
+        return "bg-green-100 text-green-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  // Get status display label
+  const getStatusLabel = (status: string | undefined | null) => {
+    if (!status) return "Unknown"
+    switch (status.toLowerCase()) {
+      case "new":
+        return "New"
+      case "pending":
+        return "Pending"
+      case "contacted":
+        return "Contacted"
+      case "completed":
+        return "Completed"
+      default:
+        return status.charAt(0).toUpperCase() + status.slice(1)
+    }
+  }
+
+  // Update status via API
+  const handleStatusUpdate = async () => {
+    if (!lead || !selectedStatus || selectedStatus === lead.status) return
+
+    setUpdatingStatus(true)
+    setError(null)
+    setStatusUpdateMessage(null)
+
+    try {
+      const url = `${API_BASE_URL}/leads/${leadId}/status`
+      console.log("Updating status at:", url)
+      console.log("New status:", selectedStatus)
+      
+      const response = await fetch(url, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        mode: "cors",
+        body: JSON.stringify({
+          status: selectedStatus,
+        }),
+      })
+
+      console.log("Status update response status:", response.status)
+      const responseText = await response.text()
+      console.log("Status update response:", responseText)
+
+      if (!response.ok) {
+        let errorData
+        try {
+          errorData = JSON.parse(responseText)
+        } catch {
+          errorData = { detail: responseText || response.statusText }
+        }
+
+        // Handle different error status codes
+        if (response.status === 400) {
+          const errorMessage = errorData.detail || "Invalid request. Please check the status value."
+          setStatusUpdateMessage({ type: "error", message: errorMessage })
+          throw new Error(errorMessage)
+        } else if (response.status === 404) {
+          const errorMessage = errorData.detail || "Lead not found."
+          setStatusUpdateMessage({ type: "error", message: errorMessage })
+          throw new Error(errorMessage)
+        } else if (response.status === 500) {
+          const errorMessage = errorData.detail || "Server error. Please try again later."
+          setStatusUpdateMessage({ type: "error", message: errorMessage })
+          throw new Error(errorMessage)
+        } else {
+          const errorMessage = errorData.detail || `Failed to update status: ${response.statusText}`
+          setStatusUpdateMessage({ type: "error", message: errorMessage })
+          throw new Error(errorMessage)
+        }
+      }
+
+      // Parse success response
+      let data
+      try {
+        data = JSON.parse(responseText)
+      } catch {
+        data = {}
+      }
+
+      // Show success message
+      setStatusUpdateMessage({ 
+        type: "success", 
+        message: data.message || "Status updated successfully!" 
+      })
+
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setStatusUpdateMessage(null)
+      }, 3000)
+      
+      // Update lead state with response data (includes updated status and status_history)
+      if (data.status) {
+        setLead((prevLead) => {
+          if (!prevLead) return prevLead
+          return {
+            ...prevLead,
+            status: data.status,
+            status_history: data.status_history || prevLead.status_history || [],
+            updated_at: new Date().toISOString(),
+          }
+        })
+        // Update selected status to match the updated lead
+        setSelectedStatus(data.status || "new")
+      } else {
+        // If response doesn't include full data, refresh from API
+        const refreshUrl = `${API_BASE_URL}/leads/${leadId}`
+        console.log("Refreshing lead data from:", refreshUrl)
+        
+        const refreshResponse = await fetch(refreshUrl, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+          },
+          mode: "cors",
+        })
+
+        if (refreshResponse.ok) {
+          const refreshText = await refreshResponse.text()
+          let refreshedData: Lead
+          try {
+            refreshedData = JSON.parse(refreshText)
+          } catch {
+            console.error("Failed to parse refresh response")
+            return
+          }
+          
+          // Ensure arrays exist
+          if (!refreshedData.notes) {
+            refreshedData.notes = []
+          }
+          if (!refreshedData.status_history) {
+            refreshedData.status_history = []
+          }
+          setLead(refreshedData)
+          // Update selected status to match the updated lead
+          setSelectedStatus(refreshedData.status || "new")
+        }
+      }
+    } catch (err) {
+      console.error("Error updating status:", err)
+      const errorMessage = err instanceof Error ? err.message : "Failed to update status"
+      setError(errorMessage)
+      // Revert status selection on error
+      if (lead) {
+        setSelectedStatus(lead.status || "new")
+      }
+    } finally {
+      setUpdatingStatus(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <p className="text-muted-foreground">Loading lead details...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !lead) {
     return (
       <div className="space-y-6">
         <Button variant="ghost" onClick={() => router.push("/dashboard/leads")}>
@@ -99,35 +599,11 @@ export default function LeadDetailPage() {
         </Button>
         <Card>
           <CardContent className="p-8 text-center">
-            <p className="text-muted-foreground">Lead not found</p>
+            <p className="text-destructive">{error || "Lead not found"}</p>
           </CardContent>
         </Card>
       </div>
     )
-  }
-
-  const handleAddNote = () => {
-    if (newNote.trim()) {
-      setLeadNotes({
-        ...leadNotes,
-        [leadId]: [
-          ...currentNotes,
-          {
-            id: currentNotes.length + 1,
-            text: newNote,
-            timestamp: new Date().toLocaleString()
-          }
-        ]
-      })
-      setNewNote("")
-    }
-  }
-
-  const handleDeleteNote = (noteId: number) => {
-    setLeadNotes({
-      ...leadNotes,
-      [leadId]: currentNotes.filter(note => note.id !== noteId)
-    })
   }
 
   return (
@@ -143,8 +619,8 @@ export default function LeadDetailPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>{lead.name}</CardTitle>
-            <CardDescription>{lead.company} • {lead.position}</CardDescription>
+            <CardTitle>{getFullName(lead)}</CardTitle>
+            <CardDescription>{lead.company_name}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -154,27 +630,114 @@ export default function LeadDetailPage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Phone</p>
-                <p className="text-sm">{lead.phone}</p>
+                <p className="text-sm">{getFullPhone(lead)}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Company</p>
+                <p className="text-sm">{lead.company_name}</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Status</p>
-                <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
-                  {lead.status}
+                <div className="flex items-center gap-2">
+                  <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${getStatusColor(lead.status)}`}>
+                    {getStatusLabel(lead.status)}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Update Status</p>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={selectedStatus}
+                    onValueChange={setSelectedStatus}
+                    disabled={updatingStatus}
+                  >
+                    <SelectTrigger className="w-[150px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUS_OPTIONS.map((status) => {
+                        // Map API values to display labels
+                        const displayLabel = status === "new" ? "New" 
+                          : status === "pending" ? "Pending"
+                          : status === "contacted" ? "Contacted"
+                          : status === "completed" ? "Completed"
+                          : status.charAt(0).toUpperCase() + status.slice(1)
+                        return (
+                          <SelectItem key={status} value={status}>
+                            {displayLabel}
+                          </SelectItem>
+                        )
+                      })}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    onClick={handleStatusUpdate}
+                    disabled={updatingStatus || selectedStatus === lead.status || !selectedStatus}
+                  >
+                    {updatingStatus ? (
+                      <>
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      "Update"
+                    )}
+                  </Button>
+                </div>
+                {statusUpdateMessage && (
+                  <div className={`mt-2 text-xs p-2 rounded-md ${
+                    statusUpdateMessage.type === "success" 
+                      ? "bg-green-100 text-green-800" 
+                      : "bg-red-100 text-red-800"
+                  }`}>
+                    {statusUpdateMessage.message}
+                  </div>
+                )}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Terms Accepted</p>
+                <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                  lead.terms_accepted 
+                    ? "bg-green-100 text-green-800" 
+                    : "bg-red-100 text-red-800"
+                }`}>
+                  {lead.terms_accepted ? "Yes" : "No"}
                 </span>
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Source</p>
-                <p className="text-sm">{lead.source}</p>
+                <p className="text-sm font-medium text-muted-foreground">Created At</p>
+                <p className="text-sm">{formatDate(lead.created_at)}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Created At</p>
-                <p className="text-sm">{lead.createdAt}</p>
+                <p className="text-sm font-medium text-muted-foreground">Updated At</p>
+                <p className="text-sm">{formatDate(lead.updated_at)}</p>
               </div>
             </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground mb-2">Notes</p>
-              <p className="text-sm bg-muted p-3 rounded-md">{lead.notes}</p>
-            </div>
+            {lead.description && (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-2">Description</p>
+                <p className="text-sm bg-muted p-3 rounded-md">{lead.description}</p>
+              </div>
+            )}
+            {lead.status_history && lead.status_history.length > 0 && (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-2">Status History</p>
+                <div className="space-y-2">
+                  {lead.status_history.map((history, index) => (
+                    <div key={index} className="flex items-center justify-between bg-muted p-2 rounded-md">
+                      <span className={`text-xs font-medium px-2 py-1 rounded ${getStatusColor(history.status)}`}>
+                        {getStatusLabel(history.status)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatDate(history.changed_at)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -183,25 +746,39 @@ export default function LeadDetailPage() {
       <div className="w-80 border-l pl-6 flex flex-col">
         <div className="mb-4">
           <h3 className="text-lg font-semibold">Notes</h3>
-          <p className="text-sm text-muted-foreground">for {lead.name}</p>
+          <p className="text-sm text-muted-foreground">for {getFullName(lead)}</p>
+          {lead.status && (
+            <div className="mt-2">
+              <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${getStatusColor(lead.status)}`}>
+                Status: {getStatusLabel(lead.status)}
+              </span>
+            </div>
+          )}
         </div>
         
+        {error && (
+          <div className="mb-4 bg-destructive/10 text-destructive text-sm p-3 rounded-md">
+            {error}
+          </div>
+        )}
+        
         <div className="flex-1 overflow-y-auto space-y-3 mb-4">
-          {currentNotes.length > 0 ? (
-            currentNotes.map((note) => (
-              <Card key={note.id} className="p-3 relative group">
+          {lead.notes && lead.notes.length > 0 ? (
+            lead.notes.map((note, index) => (
+              <Card key={index} className="p-3 relative group">
                 <div className="flex justify-between items-start mb-2">
-                  <p className="text-xs text-muted-foreground">{note.timestamp}</p>
+                  <p className="text-xs text-muted-foreground">{note.created_at ? formatDate(note.created_at) : "N/A"}</p>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => handleDeleteNote(note.id)}
+                    onClick={() => handleDeleteNote(index)}
+                    disabled={updatingNotes}
                   >
                     <Trash2 className="h-3 w-3 text-destructive" />
                   </Button>
                 </div>
-                <p className="text-sm whitespace-pre-wrap">{note.text}</p>
+                <p className="text-sm whitespace-pre-wrap">{note.content}</p>
               </Card>
             ))
           ) : (
@@ -218,10 +795,25 @@ export default function LeadDetailPage() {
             onChange={(e) => setNewNote(e.target.value)}
             rows={3}
             className="resize-none"
+            disabled={addingNote}
           />
-          <Button onClick={handleAddNote} className="w-full" size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Note
+          <Button 
+            onClick={handleAddNote} 
+            className="w-full" 
+            size="sm"
+            disabled={addingNote || !newNote.trim()}
+          >
+            {addingNote ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Adding...
+              </>
+            ) : (
+              <>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Note
+              </>
+            )}
           </Button>
         </div>
       </div>

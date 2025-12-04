@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { useState, useEffect } from "react"
 import { DashboardHeader } from "@/components/dashboard-header"
+import { SearchFilterProvider } from "@/contexts/search-filter-context"
 import { 
   ChevronDown, 
   ChevronRight, 
@@ -30,7 +31,6 @@ export default function DashboardLayout({
   const router = useRouter()
 
   const navItems = [
-    { label: "Organization", path: "/dashboard/organization", icon: Building2 },
     { label: "Data Vault", path: "/dashboard/data-vault", icon: Database },
     { label: "Billing", path: "/dashboard/billing", icon: CreditCard },
     { label: "Support", path: "/dashboard/support", icon: HelpCircle },
@@ -78,11 +78,12 @@ export default function DashboardLayout({
   }, [])
 
   return (
-    <div className="flex flex-col h-screen bg-background">
-      {/* Header */}
-      <DashboardHeader userEmail={userEmail} />
-      
-      <div className="flex flex-1 overflow-hidden">
+    <SearchFilterProvider>
+      <div className="flex flex-col h-screen bg-background">
+        {/* Header */}
+        <DashboardHeader userEmail={userEmail} />
+
+        <div className="flex flex-1 overflow-hidden">
       {/* Left Sidebar */}
       <aside className="w-64 border-r bg-card overflow-hidden">
         <div className="flex flex-col h-full overflow-y-auto">
@@ -136,6 +137,27 @@ export default function DashboardLayout({
                 </div>
               )}
             </div>
+
+            {/* Organization (links directly to organization page) */}
+            <div className="space-y-1">
+              <Button
+                variant={
+                  pathname === "/dashboard/organization" ||
+                  pathname?.startsWith("/dashboard/organization/")
+                    ? "default"
+                    : "ghost"
+                }
+                className="w-full justify-start"
+                onClick={() => {
+                  router.push("/dashboard/organization")
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  <span>Organization</span>
+                </div>
+              </Button>
+            </div>
             
             {navItems.map((item) => {
               const Icon = item.icon
@@ -161,16 +183,13 @@ export default function DashboardLayout({
           <div className="h-full p-6 overflow-y-auto">
             {children}
           </div>
-        ) : pathname === "/dashboard/organization" ? (
-          <div className="p-6">
-            {children}
-          </div>
         ) : (
           children
         )}
       </main>
       </div>
     </div>
+    </SearchFilterProvider>
   )
 }
 

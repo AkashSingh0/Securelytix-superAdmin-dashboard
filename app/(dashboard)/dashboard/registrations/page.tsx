@@ -11,7 +11,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Card } from "@/components/ui/card"
-import { SearchFilter } from "@/components/search-filter"
+import { UnifiedSearchFilter } from "@/components/unified-search-filter"
+import { useSearchFilter } from "@/contexts/search-filter-context"
 import { TablePagination } from "@/components/table-pagination"
 
 const mockRegistrations = [
@@ -199,37 +200,42 @@ const mockRegistrations = [
 
 export default function RegistrationsPage() {
   const router = useRouter()
-  const [searchQuery, setSearchQuery] = useState("")
+  const { state } = useSearchFilter()
   const [currentPage, setCurrentPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
 
-  const filteredRegistrations = mockRegistrations.filter((registration) =>
-    registration.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    registration.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    registration.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    registration.status.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredRegistrations = mockRegistrations.filter((registration) => {
+    const searchLower = state.searchQuery.toLowerCase()
+    const statusFilter = state.filters.status ? state.filters.status.toLowerCase() : ""
+    
+    const matchesSearch = 
+      registration.name.toLowerCase().includes(searchLower) ||
+      registration.email.toLowerCase().includes(searchLower) ||
+      registration.company.toLowerCase().includes(searchLower) ||
+      registration.status.toLowerCase().includes(searchLower)
+    
+    const matchesStatus = !statusFilter || registration.status.toLowerCase() === statusFilter
+    
+    return matchesSearch && matchesStatus
+  })
 
   const totalPages = Math.ceil(filteredRegistrations.length / rowsPerPage)
   const startIndex = (currentPage - 1) * rowsPerPage
   const endIndex = startIndex + rowsPerPage
   const paginatedRegistrations = filteredRegistrations.slice(startIndex, endIndex)
 
-  // Reset to page 1 when search query changes
+  // Reset to page 1 when search query or filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery])
+  }, [state.searchQuery, state.filters])
 
   return (
     <div className="space-y-6">
       {/* Search and Filter - Above Title */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Register Lead</h1>
-        <SearchFilter
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
+        <UnifiedSearchFilter
           placeholder="Search registrations..."
-          showFilter={true}
           alignRight={false}
         />
       </div>

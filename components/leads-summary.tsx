@@ -32,14 +32,11 @@ export function LeadsSummary({
   miscellaneous = 0,
 }: LeadsSummaryProps) {
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-bold">Leads Summary</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <SummaryCard value={registrations} label="Registrations" />
-        <SummaryCard value={contactUs} label="Contact Us" />
-        <SummaryCard value={resources} label="Resources" />
-        <SummaryCard value={miscellaneous} label="Miscellaneous" />
-      </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <SummaryCard value={registrations} label="Registrations" />
+      <SummaryCard value={contactUs} label="Contact Us" />
+      <SummaryCard value={resources} label="Resources" />
+      <SummaryCard value={miscellaneous} label="Miscellaneous" />
     </div>
   )
 }
