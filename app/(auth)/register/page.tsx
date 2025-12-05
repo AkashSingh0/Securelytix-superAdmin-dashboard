@@ -22,7 +22,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import Link from "next/link"
-import { CheckCircle2, Loader2 } from "lucide-react"
+import Image from "next/image"
+import { CheckCircle2, Loader2, Eye, EyeOff } from "lucide-react"
 import { API_BASE_URL } from "@/lib/api/config"
 
 interface RegisterResponse {
@@ -44,6 +45,7 @@ export default function RegisterPage() {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [role, setRole] = useState("")
   const [token, setToken] = useState("")
   const [error, setError] = useState("")
@@ -183,9 +185,19 @@ export default function RegisterPage() {
 
   return (
     <>
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 via-cyan-50 to-emerald-50 p-4">
         <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
+          <div className="flex justify-center mb-4">
+            <Image
+              src="/securelytix-logo.svg"
+              alt="Securelytix Logo"
+              width={200}
+              height={60}
+              className="h-auto"
+              priority
+            />
+          </div>
           <CardTitle className="text-2xl font-bold text-center">
             Create Account
           </CardTitle>
@@ -232,15 +244,30 @@ export default function RegisterPage() {
               <Label htmlFor="password">
                 Password <span className="text-destructive">*</span>
               </Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={loading}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={loading}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  disabled={loading}
+                >
+                  {showPassword ? (
+                    <Eye className="h-4 w-4" />
+                  ) : (
+                    <EyeOff className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
               <p className="text-xs text-muted-foreground">
                 Must be at least 6 characters with uppercase, lowercase, and number
               </p>
@@ -304,7 +331,7 @@ export default function RegisterPage() {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center justify-center mb-4">
-            <CheckCircle2 className="h-16 w-16 text-green-500" />
+            <CheckCircle2 className="h-16 w-16 text-accent" />
           </div>
           <DialogTitle className="text-center text-xl">
             Registration Successful!

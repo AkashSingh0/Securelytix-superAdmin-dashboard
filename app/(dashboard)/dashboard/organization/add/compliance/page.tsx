@@ -87,7 +87,9 @@ export default function CompliancePage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="dataPrivacyPolicy">Data Privacy Policy</Label>
+            <Label htmlFor="dataPrivacyPolicy">
+              Data Privacy Policy <span className="text-destructive">*</span>
+            </Label>
             <p className="text-xs text-muted-foreground">
               Provide your data privacy policy as a PDF document <span className="font-semibold">or</span> a
               website link.
@@ -165,7 +167,9 @@ export default function CompliancePage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="informationSecurityPolicy">Information Security Policy</Label>
+            <Label htmlFor="informationSecurityPolicy">
+              Information Security Policy <span className="text-destructive">*</span>
+            </Label>
             <div className="space-y-2">
               {businessDetails.informationSecurityPolicy ? (
                 <div className="flex items-center gap-2 p-3 border rounded-md bg-background">

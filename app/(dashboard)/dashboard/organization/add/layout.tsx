@@ -5,7 +5,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { X, ChevronRight, Loader2 } from "lucide-react"
 import { OrganizationContext, type BusinessDetails, type BasicDetails, type Step } from "./context"
-import { submitBasicInfo, submitCompliance, submitTechnical, submitUseCase, submitAuthorization } from "@/lib/api/organization"
+import { submitBasicInfo, submitCompliance, submitTechnical, submitUseCase, submitAuthorization, fetchOrganizationDetails } from "@/lib/api/organization"
 
 const stepRoutes: { step: Step; path: string; label: string }[] = [
   { step: 1, path: "basic-info", label: "Organization Basic Information" },
@@ -88,30 +88,104 @@ function OrganizationAddLayoutContent({ children }: { children: ReactNode }) {
     const mode = searchParams.get("mode")
 
     if (mode === "edit") {
-      const stored = sessionStorage.getItem("selectedOrganization")
-      if (stored) {
-        try {
-          const org = JSON.parse(stored)
-          setBasicDetails((prev) => ({
-            ...prev,
-            merchantId: org.merchantId || prev.merchantId,
-          }))
-          setBusinessDetails((prev) => {
-            // Populate Access Roles Matrix with email from organization
-            const accessRoles = org.email
-              ? [{ name: "", email: org.email || "", phone: "", role: "superadmin" }]
-              : []
-            return {
-              ...prev,
-              legalEntityName: org.name || prev.legalEntityName,
-              accessRolesMatrix: accessRoles,
+      const loadOrganizationData = async () => {
+        const stored = sessionStorage.getItem("selectedOrganization")
+        if (stored) {
+          try {
+            const org = JSON.parse(stored)
+            const organizationId = org.merchantId || org.id
+
+            if (organizationId) {
+              // Fetch full organization details from API
+              const response = await fetchOrganizationDetails(organizationId)
+              
+              if (response.success && response.data) {
+                const data = response.data
+                
+                // Set basic details
+                setBasicDetails((prev) => ({
+                  ...prev,
+                  merchantId: data.organization_id || organizationId,
+                }))
+
+                // Populate all business details from API response
+                setBusinessDetails((prev) => ({
+                  ...prev,
+                  // Step 1: Basic Info
+                  legalEntityName: data.legal_entity_name || data.organization_name || org.name || prev.legalEntityName,
+                  registeredAddress: data.registered_address || prev.registeredAddress,
+                  businessType: data.business_type || prev.businessType,
+                  // Note: Files are stored as file_ids in backend, we can't directly load them
+                  // They would need to be fetched separately if needed
+                  registrationCertificate: data.registration_certificate_file_id ? null : prev.registrationCertificate,
+                  panTaxId: data.pan_tax_id_file_id ? null : prev.panTaxId,
+                  gstVatCertificate: data.gst_vat_certificate_file_id ? null : prev.gstVatCertificate,
+                  authorizedSignatoryIdProof: data.authorized_signatory_id_proof_file_ids?.length ? [] : prev.authorizedSignatoryIdProof,
+                  
+                  // Step 2: Compliance
+                  kycDocumentsDirectorsOwners: data.kyc_documents_directors_owners_file_ids?.length ? [] : prev.kycDocumentsDirectorsOwners,
+                  dataPrivacyPolicy: data.data_privacy_policy_file_id ? null : prev.dataPrivacyPolicy,
+                  dataPrivacyPolicyWebsite: data.data_privacy_policy_website || prev.dataPrivacyPolicyWebsite,
+                  informationSecurityPolicy: data.information_security_policy_file_id ? null : prev.informationSecurityPolicy,
+                  
+                  // Step 3: Technical
+                  apiIntegrationDetails: data.api_integration_details_file_id ? null : prev.apiIntegrationDetails,
+                  dataSchemaFieldMapping: data.data_schema_field_mapping_file_id ? null : prev.dataSchemaFieldMapping,
+                  dataFlowDiagram: data.data_flow_diagram_file_id ? null : prev.dataFlowDiagram,
+                  expectedTransactionVolume: data.expected_transaction_volume_file_id ? null : prev.expectedTransactionVolume,
+                  infrastructureOverview: {
+                    cloudProvider: data.infrastructure_overview?.cloud_provider || prev.infrastructureOverview.cloudProvider,
+                    serverRegion: data.infrastructure_overview?.server_region || prev.infrastructureOverview.serverRegion,
+                    ipWhitelisting: data.infrastructure_overview?.ip_whitelisting || prev.infrastructureOverview.ipWhitelisting,
+                  },
+                  technicalSPOCContacts: data.technical_spoc_contacts && data.technical_spoc_contacts.length > 0
+                    ? data.technical_spoc_contacts
+                    : prev.technicalSPOCContacts,
+                  
+                  // Step 4: Use Case
+                  businessUseCase: data.business_use_case_file_id ? null : prev.businessUseCase,
+                  dataResidencyRequirement: data.data_residency_requirement_file_id ? null : prev.dataResidencyRequirement,
+                  iamDetails: data.iam_details_file_id ? null : prev.iamDetails,
+                  accessRolesMatrix: data.access_roles_matrix && data.access_roles_matrix.length > 0
+                    ? data.access_roles_matrix
+                    : (org.email ? [{ name: "", email: org.email || "", phone: "", role: "superadmin" }] : prev.accessRolesMatrix),
+                  downstreamDataUsage: data.downstream_data_usage_file_id ? null : prev.downstreamDataUsage,
+                  
+                  // Step 5: Authorization
+                  authorizedSignatoryLetter: data.authorized_signatory_letter_file_id ? null : prev.authorizedSignatoryLetter,
+                  ndaDataProtectionAgreement: data.nda_data_protection_agreement_file_id ? null : prev.ndaDataProtectionAgreement,
+                  escalationContacts: data.escalation_contacts && data.escalation_contacts.length > 0
+                    ? data.escalation_contacts
+                    : prev.escalationContacts,
+                }))
+              } else {
+                // Fallback to sessionStorage data if API fails
+                setBasicDetails((prev) => ({
+                  ...prev,
+                  merchantId: org.merchantId || org.id || prev.merchantId,
+                }))
+                setBusinessDetails((prev) => {
+                  const accessRoles = org.email
+                    ? [{ name: "", email: org.email || "", phone: "", role: "superadmin" }]
+                    : []
+                  return {
+                    ...prev,
+                    legalEntityName: org.name || prev.legalEntityName,
+                    accessRolesMatrix: accessRoles,
+                  }
+                })
+              }
             }
-          })
-          setIsEditMode(true)
-        } catch {
-          // ignore parse errors
+            setIsEditMode(true)
+          } catch (err) {
+            console.error("Error loading organization data:", err)
+            // Fallback: at least set edit mode
+            setIsEditMode(true)
+          }
         }
       }
+
+      loadOrganizationData()
     } else {
       setIsEditMode(false)
       setBasicDetails((prev) => ({

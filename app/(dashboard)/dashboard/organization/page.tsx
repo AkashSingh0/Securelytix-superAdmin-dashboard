@@ -123,13 +123,16 @@ export default function AllMerchantsPage() {
 
   const handleEditOrganization = (org: OrganizationListItem) => {
     if (typeof window !== "undefined") {
+      // Store organization data for edit mode
+      // Use organization_id if available, otherwise use id
+      const organizationId = org.organization_id || org.id
       sessionStorage.setItem(
         "selectedOrganization",
         JSON.stringify({
           id: org.id,
           name: org.organization_name || "",
           email: org.email || "",
-          merchantId: org.id,
+          merchantId: organizationId, // Use organization_id (ORG_xxx) for API calls
           productStatus: org.status,
         }),
       )
@@ -157,22 +160,22 @@ export default function AllMerchantsPage() {
       {/* Table (scrollable rows inside card) */}
       <Card>
         <div className="max-h-[580px] overflow-y-auto">
-          <Table>
-            <TableHeader>
+        <Table>
+          <TableHeader>
               <TableRow className="h-14">
                 <TableHead>Organization Name</TableHead>
-                <TableHead>Email</TableHead>
+              <TableHead>Email</TableHead>
                 <TableHead>
                   <div className="flex items-center gap-1">
                    Organization ID
                     <Info className="h-3 w-3 text-muted-foreground" />
                   </div>
                 </TableHead>
-                <TableHead>Status</TableHead>
+              <TableHead>Status</TableHead>
                 <TableHead>Edit Account</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
               {isLoading ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8">
@@ -218,15 +221,15 @@ export default function AllMerchantsPage() {
                   </TableRow>
                   )
                 })
-              ) : (
-                <TableRow>
+            ) : (
+              <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    No organizations found
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                  No organizations found
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
         </div>
         <TablePagination
           currentPage={currentPage}

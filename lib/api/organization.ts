@@ -52,6 +52,104 @@ export async function fetchOrganizations(): Promise<FetchOrganizationsResponse> 
   }
 }
 
+export interface OrganizationDetails {
+  id: string
+  organization_id?: string
+  organization_name?: string
+  email?: string
+  status?: string
+  // Step 1: Basic Info
+  legal_entity_name?: string
+  registered_address?: string
+  business_type?: string
+  registration_certificate_file_id?: string | null
+  pan_tax_id_file_id?: string | null
+  gst_vat_certificate_file_id?: string | null
+  authorized_signatory_id_proof_file_ids?: string[]
+  // Step 2: Compliance
+  kyc_documents_directors_owners_file_ids?: string[]
+  data_privacy_policy_file_id?: string | null
+  data_privacy_policy_website?: string | null
+  information_security_policy_file_id?: string | null
+  // Step 3: Technical
+  api_integration_details_file_id?: string | null
+  data_schema_field_mapping_file_id?: string | null
+  data_flow_diagram_file_id?: string | null
+  expected_transaction_volume_file_id?: string | null
+  infrastructure_overview?: {
+    cloud_provider?: string
+    server_region?: string
+    ip_whitelisting?: string[]
+  }
+  technical_spoc_contacts?: Array<{
+    name: string
+    email: string
+    phone: string
+    designation: string
+  }>
+  // Step 4: Use Case
+  business_use_case_file_id?: string | null
+  data_residency_requirement_file_id?: string | null
+  iam_details_file_id?: string | null
+  access_roles_matrix?: Array<{
+    name: string
+    email: string
+    phone: string
+    role: string
+  }>
+  downstream_data_usage_file_id?: string | null
+  // Step 5: Authorization
+  authorized_signatory_letter_file_id?: string | null
+  nda_data_protection_agreement_file_id?: string | null
+  escalation_contacts?: Array<{
+    name: string
+    email: string
+    phone: string
+    designation: string
+  }>
+}
+
+export interface FetchOrganizationDetailsResponse {
+  success: boolean
+  data?: OrganizationDetails
+  error?: string
+  message?: string
+}
+
+export async function fetchOrganizationDetails(organizationId: string): Promise<FetchOrganizationDetailsResponse> {
+  try {
+    // The API endpoint expects organization_id (e.g., ORG_ABC123), not MongoDB id
+    // If the provided ID doesn't start with ORG_, it might be a MongoDB id
+    // In that case, we might need to use a different endpoint or handle it differently
+    const response = await fetch(`${API_BASE_URL}/organizations/${organizationId}`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.error || data.detail || "Failed to fetch organization details",
+        message: data.message || "Unknown error",
+      }
+    }
+
+    return {
+      success: true,
+      data: data,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Network error occurred",
+    }
+  }
+}
+
 export interface BasicInfoRequest {
   organization_id: string
   legal_entity_name: string

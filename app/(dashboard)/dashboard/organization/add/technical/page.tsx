@@ -220,7 +220,7 @@ export default function TechnicalPage() {
             <div className="space-y-3 p-4 border rounded-md bg-background">
               <div className="space-y-1">
                 <Label htmlFor="cloudProvider" className="text-xs">
-                  Cloud provider
+                  Cloud provider <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="cloudProvider"
@@ -235,7 +235,7 @@ export default function TechnicalPage() {
 
               <div className="space-y-1">
                 <Label htmlFor="serverRegion" className="text-xs">
-                  Server region
+                  Server region <span className="text-destructive">*</span>
                 </Label>
                 <Select
                   value={businessDetails.infrastructureOverview.serverRegion}
@@ -261,7 +261,7 @@ export default function TechnicalPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="ipWhitelistingInput" className="text-xs">
-                  IP whitelisting (max 3)
+                  IP whitelisting (max 3) <span className="text-destructive">*</span>
                 </Label>
                 <div className="flex gap-2">
                   <Input

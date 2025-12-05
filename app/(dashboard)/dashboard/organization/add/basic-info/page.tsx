@@ -30,7 +30,9 @@ export default function BasicInfoPage() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="legalEntityName">Legal Entity Name</Label>
+            <Label htmlFor="legalEntityName">
+              Legal Entity Name <span className="text-destructive">*</span>
+            </Label>
             <Input
               id="legalEntityName"
               placeholder="Registered name as per business registration"
@@ -41,7 +43,9 @@ export default function BasicInfoPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="registeredAddress">Registered Address</Label>
+            <Label htmlFor="registeredAddress">
+              Registered Address <span className="text-destructive">*</span>
+            </Label>
             <Input
               id="registeredAddress"
               placeholder="Full office address (with PIN/ZIP code)"
@@ -52,7 +56,9 @@ export default function BasicInfoPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="businessType">Business Type</Label>
+            <Label htmlFor="businessType">
+              Business Type <span className="text-destructive">*</span>
+            </Label>
             <Select
               value={businessDetails.businessType}
               onValueChange={(value) => handleBusinessDetailsChange("businessType", value)}

@@ -210,13 +210,13 @@ export default function DashboardPage() {
               <div className="text-2xl font-bold mb-1">{kpi.value}</div>
               <div className="flex items-center gap-2 mb-1">
                 {kpi.changeType === "increase" ? (
-                  <TrendingUp className="h-4 w-4 text-green-600" />
+                  <TrendingUp className="h-4 w-4 text-accent" />
                 ) : (
                   <TrendingDown className="h-4 w-4 text-red-600" />
                 )}
                 <span
                   className={`text-sm font-medium ${
-                    kpi.changeType === "increase" ? "text-green-600" : "text-red-600"
+                    kpi.changeType === "increase" ? "text-accent" : "text-red-600"
                   }`}
                 >
                   {kpi.change}
@@ -375,7 +375,7 @@ export default function DashboardPage() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             {row.statusIcon === "check" ? (
-                              <Check className="h-4 w-4 text-green-600" />
+                              <Check className="h-4 w-4 text-accent" />
                             ) : (
                               <Star className="h-4 w-4 text-yellow-600" />
                             )}
