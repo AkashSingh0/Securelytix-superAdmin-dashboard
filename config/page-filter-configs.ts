@@ -77,6 +77,27 @@ export const pageFilterConfigs: Record<string, FilterConfig> = {
       { value: "charges", label: "Charges" },
     ],
   },
+  "/dashboard/data-vault/workspace": {
+    date_from: true,
+    date_to: true,
+    status: true,
+    sortFields: [
+      { value: "created_at", label: "Created At" },
+      { value: "updated_at", label: "Updated At" },
+      { value: "name", label: "Name" },
+    ],
+  },
+  "/dashboard/data-vault/vault": {
+    date_from: true,
+    date_to: true,
+    status: true,
+    sortFields: [
+      { value: "created_at", label: "Created At" },
+      { value: "updated_at", label: "Updated At" },
+      { value: "name", label: "Name" },
+      { value: "records", label: "Records" },
+    ],
+  },
 }
 
 export function getFilterConfigForPath(pathname: string): FilterConfig | null {

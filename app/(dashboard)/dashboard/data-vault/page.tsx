@@ -29,10 +29,10 @@ export default function DataVaultPage() {
 
       {/* Top Row - Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <SummaryCard value={500} label="Organizations" />
-        <SummaryCard value={600} label="Agents" />
-        <SummaryCard value={1200} label="Vaults" />
-        <SummaryCard value="1.2m" label="PII Protected" />
+        <SummaryCard value={500} label="Merchant" />
+        <SummaryCard value={600} label="Organization" />
+        <SummaryCard value={1200} label="Workspace" />
+        <SummaryCard value="1.2m" label="Vault" />
       </div>
 
       {/* Middle Row - Data Panels */}

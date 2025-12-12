@@ -19,7 +19,9 @@ import {
   CreditCard, 
   HelpCircle, 
   Eye, 
-  ScrollText 
+  ScrollText,
+  LayoutGrid,
+  Lock
 } from "lucide-react"
 
 export default function DashboardLayout({
@@ -31,7 +33,6 @@ export default function DashboardLayout({
   const router = useRouter()
 
   const navItems = [
-    { label: "Data Vault", path: "/dashboard/data-vault", icon: Database },
     { label: "Billing", path: "/dashboard/billing", icon: CreditCard },
     { label: "Support", path: "/dashboard/support", icon: HelpCircle },
     { label: "Observibility", path: "/dashboard/observibility", icon: Eye },
@@ -45,7 +46,13 @@ export default function DashboardLayout({
     { label: "Miscellaneous", path: "/dashboard/miscellaneous", icon: Folder },
   ]
 
+  const dataVaultSubItems = [
+    { label: "Workspace", path: "/dashboard/data-vault/workspace", icon: LayoutGrid },
+    // { label: "Vault", path: "/dashboard/data-vault/vault", icon: Lock },
+  ]
+
   const [isLeadsExpanded, setIsLeadsExpanded] = useState(false)
+  const [isDataVaultExpanded, setIsDataVaultExpanded] = useState(false)
   
   // Close leads submenu when navigating away from leads submenu pages
   useEffect(() => {
@@ -61,6 +68,17 @@ export default function DashboardLayout({
     } else {
       // Keep submenu open when on any leads submenu pages
       setIsLeadsExpanded(true)
+    }
+  }, [pathname])
+
+  // Close data vault submenu when navigating away from data vault pages
+  useEffect(() => {
+    if (pathname !== "/dashboard/data-vault" && 
+        !pathname?.startsWith("/dashboard/data-vault/")) {
+      setIsDataVaultExpanded(false)
+    } else {
+      // Keep submenu open when on any data vault pages
+      setIsDataVaultExpanded(true)
     }
   }, [pathname])
 
@@ -121,12 +139,8 @@ export default function DashboardLayout({
                     return (
                       <Button
                         key={item.label}
-                        variant="ghost"
-                        className={`w-full justify-start text-xs ${
-                          isActive
-                            ? "!bg-[#e0dfdf] !text-black hover:!bg-[#e0dfdf]"
-                            : "bg-transparent text-foreground hover:bg-transparent"
-                        }`}
+                        variant={isActive ? "default" : "ghost"}
+                        className="w-full justify-start text-xs"
                         onClick={() => router.push(item.path)}
                       >
                         <Icon className="h-3 w-3 mr-2" />
@@ -157,6 +171,47 @@ export default function DashboardLayout({
                   <span>Organization</span>
                 </div>
               </Button>
+            </div>
+
+            {/* Data Vault with Toggle */}
+            <div className="space-y-1">
+              <Button
+                variant={pathname === "/dashboard/data-vault" ? "default" : "ghost"}
+                className="w-full justify-between"
+                onClick={() => {
+                  router.push("/dashboard/data-vault")
+                  setIsDataVaultExpanded(true)
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <Database className="h-4 w-4" />
+                  <span>Data Vault</span>
+                </div>
+                {isDataVaultExpanded ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </Button>
+              {isDataVaultExpanded && (
+                <div className="pl-4 space-y-1">
+                  {dataVaultSubItems.map((item) => {
+                    const isActive = pathname === item.path || pathname?.startsWith(`${item.path}/`)
+                    const Icon = item.icon
+                    return (
+                      <Button
+                        key={item.label}
+                        variant={isActive ? "default" : "ghost"}
+                        className="w-full justify-start text-xs"
+                        onClick={() => router.push(item.path)}
+                      >
+                        <Icon className="h-3 w-3 mr-2" />
+                        {item.label}
+                      </Button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
             
             {navItems.map((item) => {
