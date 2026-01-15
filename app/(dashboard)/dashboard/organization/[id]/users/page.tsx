@@ -404,7 +404,7 @@ export default function UsersListPage() {
                 <DialogTitle>Remove User</DialogTitle>
               </div>
               <DialogDescription className="text-left">
-                Are you sure you want to remove <span className="font-medium text-foreground">"{userToDelete?.name}"</span>? 
+                Are you sure you want to remove <span className="font-medium text-foreground">&quot;{userToDelete?.name}&quot;</span>? 
                 They will lose access to this organization. This action cannot be undone.
               </DialogDescription>
             </DialogHeader>

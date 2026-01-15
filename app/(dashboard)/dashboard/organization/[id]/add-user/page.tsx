@@ -1,5 +1,6 @@
 "use client"
 
+import { Suspense } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -14,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { ArrowLeft, UserPlus, Mail, Phone, User, Shield } from "lucide-react"
+import { ArrowLeft, UserPlus, Mail, Phone, User, Shield, Loader2 } from "lucide-react"
 
 interface OrganizationData {
   id: string
@@ -33,7 +34,7 @@ interface UserData {
   status: string
 }
 
-export default function AddUserPage() {
+function AddUserContent() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -309,5 +310,24 @@ export default function AddUserPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+function AddUserLoading() {
+  return (
+    <div className="h-full flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    </div>
+  )
+}
+
+export default function AddUserPage() {
+  return (
+    <Suspense fallback={<AddUserLoading />}>
+      <AddUserContent />
+    </Suspense>
   )
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { Suspense, useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -27,7 +27,8 @@ import {
 } from "@/lib/schemas/auth.schema"
 import { loginUser, storeAuthData, isAuthenticated } from "@/lib/api/auth"
 
-export default function LoginPage() {
+// Inner component that uses useSearchParams
+function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [showPassword, setShowPassword] = useState(false)
@@ -72,112 +73,149 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 via-cyan-50 to-emerald-50 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <div className="flex justify-center mb-4">
-            <Image
-              src="/securelytix-logo.svg"
-              alt="Securelytix Logo"
-              width={200}
-              height={60}
-              className="h-auto"
-              priority
+    <Card className="w-full max-w-md">
+      <CardHeader className="space-y-1">
+        <div className="flex justify-center mb-4">
+          <Image
+            src="/securelytix-logo.svg"
+            alt="Securelytix Logo"
+            width={200}
+            height={60}
+            className="h-auto"
+            priority
+          />
+        </div>
+        <CardTitle className="text-2xl font-bold text-center">
+          Sign In
+        </CardTitle>
+        <CardDescription className="text-center">
+          Enter your email and password to access your account
+        </CardDescription>
+      </CardHeader>
+
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <CardContent className="space-y-4">
+          {/* Submit Error */}
+          {submitError && (
+            <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <span>{submitError}</span>
+            </div>
+          )}
+
+          {/* Email Field */}
+          <div className="space-y-2">
+            <Label htmlFor="email">
+              Email <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="name@example.com"
+              autoComplete="email"
+              disabled={isSubmitting}
+              {...register("email")}
+              className={errors.email ? "border-destructive" : ""}
             />
-          </div>
-          <CardTitle className="text-2xl font-bold text-center">
-            Sign In
-          </CardTitle>
-          <CardDescription className="text-center">
-            Enter your email and password to access your account
-          </CardDescription>
-        </CardHeader>
-
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <CardContent className="space-y-4">
-            {/* Submit Error */}
-            {submitError && (
-              <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md flex items-start gap-2">
-                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <span>{submitError}</span>
-              </div>
+            {errors.email && (
+              <p className="text-xs text-destructive">{errors.email.message}</p>
             )}
+          </div>
 
-            {/* Email Field */}
-            <div className="space-y-2">
-              <Label htmlFor="email">
-                Email <span className="text-destructive">*</span>
-              </Label>
+          {/* Password Field */}
+          <div className="space-y-2">
+            <Label htmlFor="password">
+              Password <span className="text-destructive">*</span>
+            </Label>
+            <div className="relative">
               <Input
-                id="email"
-                type="email"
-                placeholder="name@example.com"
-                autoComplete="email"
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
+                autoComplete="current-password"
                 disabled={isSubmitting}
-                {...register("email")}
-                className={errors.email ? "border-destructive" : ""}
+                {...register("password")}
+                className={`pr-10 ${errors.password ? "border-destructive" : ""}`}
               />
-              {errors.email && (
-                <p className="text-xs text-destructive">{errors.email.message}</p>
-              )}
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                disabled={isSubmitting}
+                tabIndex={-1}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <Eye className="h-4 w-4" />
+                ) : (
+                  <EyeOff className="h-4 w-4" />
+                )}
+              </button>
             </div>
+            {errors.password && (
+              <p className="text-xs text-destructive">{errors.password.message}</p>
+            )}
+          </div>
+        </CardContent>
 
-            {/* Password Field */}
-            <div className="space-y-2">
-              <Label htmlFor="password">
-                Password <span className="text-destructive">*</span>
-              </Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  autoComplete="current-password"
-                  disabled={isSubmitting}
-                  {...register("password")}
-                  className={`pr-10 ${errors.password ? "border-destructive" : ""}`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  disabled={isSubmitting}
-                  tabIndex={-1}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? (
-                    <Eye className="h-4 w-4" />
-                  ) : (
-                    <EyeOff className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
-              {errors.password && (
-                <p className="text-xs text-destructive">{errors.password.message}</p>
-              )}
-            </div>
-          </CardContent>
+        <CardFooter className="flex flex-col space-y-4">
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Signing in...
+              </>
+            ) : (
+              "Sign In"
+            )}
+          </Button>
+          <p className="text-sm text-center text-muted-foreground">
+            Don&apos;t have an account?{" "}
+            <Link href="/register" className="text-primary hover:underline">
+              Sign up
+            </Link>
+          </p>
+        </CardFooter>
+      </form>
+    </Card>
+  )
+}
 
-          <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
-                </>
-              ) : (
-                "Sign In"
-              )}
-            </Button>
-            <p className="text-sm text-center text-muted-foreground">
-              Don&apos;t have an account?{" "}
-              <Link href="/register" className="text-primary hover:underline">
-                Sign up
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
-      </Card>
+// Loading fallback for Suspense
+function LoginFormSkeleton() {
+  return (
+    <Card className="w-full max-w-md">
+      <CardHeader className="space-y-1">
+        <div className="flex justify-center mb-4">
+          <div className="h-[60px] w-[200px] bg-muted animate-pulse rounded" />
+        </div>
+        <div className="h-8 w-32 mx-auto bg-muted animate-pulse rounded" />
+        <div className="h-4 w-64 mx-auto bg-muted animate-pulse rounded" />
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <div className="h-4 w-12 bg-muted animate-pulse rounded" />
+          <div className="h-10 w-full bg-muted animate-pulse rounded" />
+        </div>
+        <div className="space-y-2">
+          <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+          <div className="h-10 w-full bg-muted animate-pulse rounded" />
+        </div>
+      </CardContent>
+      <CardFooter>
+        <div className="h-10 w-full bg-muted animate-pulse rounded" />
+      </CardFooter>
+    </Card>
+  )
+}
+
+// Main page component with Suspense boundary
+export default function LoginPage() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 via-cyan-50 to-emerald-50 p-4">
+      <Suspense fallback={<LoginFormSkeleton />}>
+        <LoginForm />
+      </Suspense>
     </div>
   )
 }

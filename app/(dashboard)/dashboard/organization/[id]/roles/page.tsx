@@ -444,7 +444,7 @@ export default function RolesListPage() {
                 <DialogTitle>Delete Role</DialogTitle>
               </div>
               <DialogDescription className="text-left">
-                Are you sure you want to delete <span className="font-medium text-foreground">"{roleToDelete?.name}"</span>? 
+                Are you sure you want to delete <span className="font-medium text-foreground">&quot;{roleToDelete?.name}&quot;</span>? 
                 This will remove all associated permissions. This action cannot be undone.
               </DialogDescription>
             </DialogHeader>

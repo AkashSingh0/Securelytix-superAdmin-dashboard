@@ -1,5 +1,6 @@
 "use client"
 
+import { Suspense } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -7,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Vault, Globe, FileText, Layers, MapPin, Database } from "lucide-react"
+import { ArrowLeft, Vault, Globe, FileText, Layers, MapPin, Database, Loader2 } from "lucide-react"
 
 interface OrganizationData {
   id: string
@@ -27,7 +28,7 @@ interface VaultData {
   status: string
 }
 
-export default function CreateVaultPage() {
+function CreateVaultContent() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -274,5 +275,24 @@ export default function CreateVaultPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+function CreateVaultLoading() {
+  return (
+    <div className="h-full flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    </div>
+  )
+}
+
+export default function CreateVaultPage() {
+  return (
+    <Suspense fallback={<CreateVaultLoading />}>
+      <CreateVaultContent />
+    </Suspense>
   )
 }
