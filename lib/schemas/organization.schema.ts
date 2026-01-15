@@ -36,8 +36,8 @@ export const organizationFormSchema = z.object({
     .min(1, "Password is required")
     .min(8, "Password must be at least 8 characters")
     .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-      "Password must contain at least one uppercase letter, one lowercase letter, and one number"
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])/,
+      "Password must contain uppercase, lowercase, number, and special character (@$!%*?&#)"
     ),
   
   maxWorkspace: z
@@ -135,56 +135,59 @@ export const organizationFormDefaults: Partial<OrganizationFormData> = {
   ipWhitelisting: [],
 }
 
-// Legal type options
+// Legal type options (values match API expectations)
 export const legalTypeOptions = [
-  { value: "pvt-ltd", label: "Private Limited (Pvt Ltd)" },
-  { value: "llp", label: "Limited Liability Partnership (LLP)" },
-  { value: "public-ltd", label: "Public Limited Company" },
-  { value: "sole-proprietor", label: "Sole Proprietorship" },
-  { value: "partnership", label: "Partnership Firm" },
-  { value: "opc", label: "One Person Company (OPC)" },
-  { value: "ngo", label: "Non-Profit / NGO" },
-  { value: "trust", label: "Trust" },
-  { value: "cooperative", label: "Cooperative Society" },
-  { value: "government", label: "Government Entity" },
-  { value: "franchise", label: "Franchise" },
-  { value: "subsidiary", label: "Subsidiary Company" },
-  { value: "joint-venture", label: "Joint Venture" },
-  { value: "msme", label: "MSME / Small Business" },
-  { value: "startup", label: "Startup (DPIIT Registered)" },
-  { value: "other", label: "Other" },
+  { value: "Private Limited Company", label: "Private Limited Company" },
+  { value: "Public Limited Company", label: "Public Limited Company" },
+  { value: "Limited Liability Partnership", label: "Limited Liability Partnership (LLP)" },
+  { value: "Sole Proprietorship", label: "Sole Proprietorship" },
+  { value: "Partnership Firm", label: "Partnership Firm" },
+  { value: "One Person Company", label: "One Person Company (OPC)" },
+  { value: "Non-Profit Organization", label: "Non-Profit / NGO" },
+  { value: "Trust", label: "Trust" },
+  { value: "Society", label: "Society" },
+  { value: "Cooperative Society", label: "Cooperative Society" },
+  { value: "Government Organization", label: "Government Entity" },
+  { value: "Franchise", label: "Franchise" },
+  { value: "Subsidiary Company", label: "Subsidiary Company" },
+  { value: "Joint Venture", label: "Joint Venture" },
+  { value: "MSME", label: "MSME / Small Business" },
+  { value: "Startup", label: "Startup (DPIIT Registered)" },
+  { value: "Other", label: "Other" },
 ] as const
 
-// Cloud provider options
+// Cloud provider options (values match API expectations)
 export const cloudProviderOptions = [
-  { value: "aws", label: "Amazon Web Services (AWS)" },
-  { value: "gcp", label: "Google Cloud Platform (GCP)" },
-  { value: "azure", label: "Microsoft Azure" },
-  { value: "digitalocean", label: "DigitalOcean" },
-  { value: "alibaba", label: "Alibaba Cloud" },
-  { value: "oracle", label: "Oracle Cloud" },
-  { value: "ibm", label: "IBM Cloud" },
-  { value: "on-premise", label: "On-Premise" },
-  { value: "hybrid", label: "Hybrid" },
-  { value: "other", label: "Other" },
+  { value: "AWS", label: "Amazon Web Services (AWS)" },
+  { value: "GCP", label: "Google Cloud Platform (GCP)" },
+  { value: "Azure", label: "Microsoft Azure" },
+  { value: "DigitalOcean", label: "DigitalOcean" },
+  { value: "Alibaba Cloud", label: "Alibaba Cloud" },
+  { value: "Oracle Cloud", label: "Oracle Cloud" },
+  { value: "IBM Cloud", label: "IBM Cloud" },
+  { value: "On-Premise", label: "On-Premise" },
+  { value: "Hybrid", label: "Hybrid" },
+  { value: "Other", label: "Other" },
 ] as const
 
-// Server region options
+// Server region options (AWS region codes for API compatibility)
 export const serverRegionOptions = [
-  { value: "in-mumbai", label: "India - Mumbai" },
-  { value: "in-hyderabad", label: "India - Hyderabad" },
-  { value: "in-delhi", label: "India - Delhi NCR" },
-  { value: "us-east", label: "United States - East (Virginia)" },
-  { value: "us-west", label: "United States - West (California)" },
-  { value: "eu-west", label: "Europe - West (Ireland)" },
-  { value: "eu-central", label: "Europe - Central (Frankfurt)" },
-  { value: "uk-london", label: "United Kingdom - London" },
-  { value: "uae-dubai", label: "UAE - Dubai" },
-  { value: "sg-singapore", label: "Singapore" },
-  { value: "jp-tokyo", label: "Japan - Tokyo" },
-  { value: "au-sydney", label: "Australia - Sydney" },
-  { value: "br-saopaulo", label: "Brazil - São Paulo" },
-  { value: "ca-central", label: "Canada - Central" },
-  { value: "other", label: "Other" },
+  { value: "ap-south-1", label: "Asia Pacific - Mumbai (ap-south-1)" },
+  { value: "ap-south-2", label: "Asia Pacific - Hyderabad (ap-south-2)" },
+  { value: "ap-southeast-1", label: "Asia Pacific - Singapore (ap-southeast-1)" },
+  { value: "ap-southeast-2", label: "Asia Pacific - Sydney (ap-southeast-2)" },
+  { value: "ap-northeast-1", label: "Asia Pacific - Tokyo (ap-northeast-1)" },
+  { value: "us-east-1", label: "US East - N. Virginia (us-east-1)" },
+  { value: "us-east-2", label: "US East - Ohio (us-east-2)" },
+  { value: "us-west-1", label: "US West - N. California (us-west-1)" },
+  { value: "us-west-2", label: "US West - Oregon (us-west-2)" },
+  { value: "eu-west-1", label: "Europe - Ireland (eu-west-1)" },
+  { value: "eu-west-2", label: "Europe - London (eu-west-2)" },
+  { value: "eu-central-1", label: "Europe - Frankfurt (eu-central-1)" },
+  { value: "me-south-1", label: "Middle East - Bahrain (me-south-1)" },
+  { value: "me-central-1", label: "Middle East - UAE (me-central-1)" },
+  { value: "sa-east-1", label: "South America - São Paulo (sa-east-1)" },
+  { value: "ca-central-1", label: "Canada - Central (ca-central-1)" },
+  { value: "other", label: "Other Region" },
 ] as const
 

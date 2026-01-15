@@ -1,5 +1,24 @@
 // API base URL - import from shared config
-import { API_BASE_URL } from "./config"
+import { API_BASE_URL, AUTH_API_BASE_URL } from "./config"
+import { getAuthToken } from "./auth"
+
+// ============================================
+// Get Headers with Bearer Token for Identity API
+// ============================================
+function getAuthHeaders(): HeadersInit {
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  }
+
+  const token = getAuthToken()
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`
+  }
+
+  return headers
+}
+
 
 export interface OrganizationListItem {
   id: string
@@ -792,8 +811,10 @@ export async function submitAuthorization(
   }
 }
 
+
 // ============================================
-// Create Organization - Single Form API
+// Create Organization - Identity Service API (V2)
+// POST /organizations on Identity Service with JWT Auth
 // ============================================
 
 export interface CreateOrganizationRequest {
@@ -808,10 +829,10 @@ export interface CreateOrganizationRequest {
   firstName: string
   lastName?: string
   companyWebsite?: string
-  // Documents
-  gstVatCertificate: File
-  panTaxId: File
-  authorizationSignatureLetter: File
+  // Documents (File objects - will be uploaded to S3 by backend)
+  gstVatCertificate: File | null
+  panTaxId: File | null
+  authorizationSignatureLetter: File | null
   // Infrastructure
   cloudProvider: string
   serverRegion: string
@@ -822,141 +843,146 @@ export interface CreateOrganizationResponse {
   success: boolean
   message: string
   data?: {
-    organization_id: string
+    id?: string
+    mid?: string
+    organization_id?: string
+    legal_entity_name?: string
+    status?: string
   }
   error?: string
 }
 
+/**
+ * Generate a file ID for S3 storage
+ * Format: category/YYYYMMDD-timestamp-filename
+ */
+function generateFileId(file: File, category: string): string {
+  const now = new Date()
+  const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "")
+  const timestamp = Math.floor(now.getTime() / 1000)
+  const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, "-").toLowerCase()
+  return `${category}/${dateStr}-${timestamp}-${sanitizedName}`
+}
+
+/**
+ * Create a new organization using the Identity Service API
+ * 
+ * Features:
+ * - Single API call (replaces previous 5-step process)
+ * - Generates unique MID (ORG-YYYYMMDD-XXXXXXXXXX)
+ * - Requires JWT authentication
+ * - Sends JSON with file IDs (S3 paths)
+ * 
+ * Note: Files need to be uploaded separately to S3 to get file IDs.
+ * Currently generates file IDs from file names as placeholders.
+ * 
+ * @param request - Organization data with File objects for documents
+ */
 export async function createOrganization(
   request: CreateOrganizationRequest
 ): Promise<CreateOrganizationResponse> {
   try {
-    // Generate organization ID
-    const organizationId = `ORG_${Math.random().toString(36).slice(2, 10).toUpperCase()}`
+    // Generate file IDs from file names
+    // Note: Actual file upload to S3 needs to be implemented separately
+    const gstVatFileId = request.gstVatCertificate 
+      ? generateFileId(request.gstVatCertificate, "gst-vat-certificates") 
+      : ""
+    const panTaxFileId = request.panTaxId 
+      ? generateFileId(request.panTaxId, "pan-tax-ids") 
+      : ""
+    const authLetterFileId = request.authorizationSignatureLetter 
+      ? generateFileId(request.authorizationSignatureLetter, "authorization-letters") 
+      : ""
 
-    // Build registered address from contact info
-    const registeredAddress = request.companyWebsite 
-      ? `Contact: ${request.firstName} ${request.lastName || ""}, Website: ${request.companyWebsite}`
-      : `Contact: ${request.firstName} ${request.lastName || ""}`
-
-    // Step 1: Submit Basic Info (creates the organization)
-    // IMPORTANT: Only send fields the backend expects
-    const basicInfoFormData = new FormData()
-    basicInfoFormData.append(
-      "request_data",
-      JSON.stringify({
-        organization_basic_information: {
-          organization_id: organizationId,
-          legal_entity_name: request.legalEntityName,
-          registered_address: registeredAddress,
-          business_type: request.legalType,
-          registration_certificate_file_id: null,
-          pan_tax_id_file_id: null,
-          gst_vat_certificate_file_id: null,
-          authorized_signatory_id_proof_file_ids: [],
-        },
-      })
-    )
-
-    // Add email as separate FormData field
-    basicInfoFormData.append("email", request.legalEmail)
-
-    // Add documents
-    if (request.gstVatCertificate) {
-      basicInfoFormData.append("gst_vat_certificate", request.gstVatCertificate)
-    }
-    if (request.panTaxId) {
-      basicInfoFormData.append("pan_tax_id", request.panTaxId)
-    }
-
-    const basicInfoResponse = await fetch(`${API_BASE_URL}/basic-info`, {
+    // Get auth token for Authorization header
+    const token = getAuthToken()
+    
+    // Call the Identity Service API with pure JSON
+    const response = await fetch(`${AUTH_API_BASE_URL}/organizations`, {
       method: "POST",
-      body: basicInfoFormData,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        legal_entity_name: request.legalEntityName,
+        legal_type: request.legalType,
+        legal_email: request.legalEmail,
+        first_name: request.firstName,
+        last_name: request.lastName || "",
+        password: request.password,
+        max_workspace: request.maxWorkspace,
+        max_vault: request.maxVault,
+        company_website: request.companyWebsite || "",
+        infrastructure_overview: {
+          cloud_provider: request.cloudProvider,
+          service_region: request.serverRegion,
+          ip_whitelist: request.ipWhitelisting || [],
+        },
+        gst_vat_certificate_file_id: gstVatFileId,
+        authorization_signatory_letter_file_id: authLetterFileId,
+        pan_tax_id_file_id: panTaxFileId,
+      }),
     })
 
-    const basicInfoData = await basicInfoResponse.json()
+    const result = await response.json()
 
-    if (!basicInfoResponse.ok) {
+    if (!response.ok) {
+      const errorMessage = result.error || result.message || result.detail || "Failed to create organization"
+
+      // Handle specific error cases
+      if (response.status === 401) {
+        return {
+          success: false,
+          message: "Authentication failed",
+          error: "Authentication failed. Please login again.",
+        }
+      }
+
+      if (response.status === 409) {
+        return {
+          success: false,
+          message: "Duplicate organization",
+          error: "An organization with this email already exists.",
+        }
+      }
+
+      if (response.status === 400) {
+        return {
+          success: false,
+          message: "Validation error",
+          error: errorMessage,
+        }
+      }
+
       return {
         success: false,
-        message: basicInfoData.message || "Failed to create organization",
-        error: basicInfoData.error || basicInfoData.detail || JSON.stringify(basicInfoData),
+        message: "Failed to create organization",
+        error: errorMessage,
       }
     }
 
-    // Step 2: Submit Technical Info (infrastructure)
-    const technicalFormData = new FormData()
-    technicalFormData.append(
-      "request_data",
-      JSON.stringify({
-        organization_id: organizationId,
-        technical_and_integration_details: {
-          api_integration_details_file_id: null,
-          data_schema_field_mapping_file_id: null,
-          data_flow_diagram_file_id: null,
-          expected_transaction_volume_file_id: null,
-          infrastructure_overview: {
-            cloud_provider: request.cloudProvider,
-            server_region: request.serverRegion,
-            ip_whitelisting: request.ipWhitelisting,
-          },
-          technical_spoc_contacts: [],
-        },
-      })
-    )
-
-    const technicalResponse = await fetch(`${API_BASE_URL}/technical`, {
-      method: "POST",
-      body: technicalFormData,
-    })
-
-    if (!technicalResponse.ok) {
-      const technicalData = await technicalResponse.json()
-      console.warn("Technical info submission warning:", technicalData)
-      // Continue anyway - basic organization is created
-    }
-
-    // Step 3: Submit Authorization (signature letter)
-    const authFormData = new FormData()
-    authFormData.append(
-      "request_data",
-      JSON.stringify({
-        organization_id: organizationId,
-        authorization: {
-          authorized_signatory_letter_file_id: null,
-          nda_data_protection_agreement_file_id: null,
-          escalation_contacts: [],
-        },
-      })
-    )
-
-    if (request.authorizationSignatureLetter) {
-      authFormData.append("authorized_signatory_letter", request.authorizationSignatureLetter)
-    }
-
-    const authResponse = await fetch(`${API_BASE_URL}/authorization`, {
-      method: "POST",
-      body: authFormData,
-    })
-
-    if (!authResponse.ok) {
-      const authData = await authResponse.json()
-      console.warn("Authorization submission warning:", authData)
-      // Continue anyway - basic organization is created
-    }
-
+    // Success response
     return {
       success: true,
-      message: "Organization created successfully",
+      message: result.message || "Organization created successfully",
       data: {
-        organization_id: organizationId,
+        id: result.data?.id,
+        mid: result.data?.mid,
+        organization_id: result.data?.mid || result.data?.id,
+        legal_entity_name: result.data?.legal_entity_name,
+        status: result.data?.status,
       },
     }
   } catch (error) {
+    console.error("Create organization error:", error)
     return {
       success: false,
       message: "Network error occurred",
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: error instanceof Error
+        ? `Network error: ${error.message}`
+        : "Failed to connect to server. Please check your internet connection.",
     }
   }
 }

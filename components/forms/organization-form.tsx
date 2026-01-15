@@ -168,8 +168,9 @@ export function OrganizationForm({
         })
 
         if (response.success) {
+          const orgId = response.data?.mid || response.data?.organization_id || response.data?.id
           setSuccessMessage(
-            `Organization created successfully! ID: ${response.data?.organization_id}`
+            `Organization created successfully!${orgId ? ` MID: ${orgId}` : ""}`
           )
           setTimeout(() => {
             router.push("/dashboard/organization")
