@@ -1,11 +1,15 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import Link from "next/link"
+import Image from "next/image"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, Eye, EyeOff } from "lucide-react"
 import {
   Card,
   CardContent,
@@ -14,101 +18,56 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import Link from "next/link"
-import Image from "next/image"
-import { API_BASE_URL } from "@/lib/api/config"
+import { Loader2, Eye, EyeOff, AlertCircle } from "lucide-react"
 
-interface LoginResponse {
-  message?: string
-  token?: string
-  user?: {
-    id?: string
-    name: string
-    email: string
-    role: string
-    created_at?: string
-  }
-  error?: string
-}
+import {
+  loginSchema,
+  loginFormDefaults,
+  type LoginFormData,
+} from "@/lib/schemas/auth.schema"
+import { loginUser, storeAuthData, isAuthenticated } from "@/lib/api/auth"
 
 export default function LoginPage() {
   const router = useRouter()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+  const searchParams = useSearchParams()
   const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
+  const [submitError, setSubmitError] = useState("")
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-
-    // Validate inputs
-    if (!email.trim() || !password.trim()) {
-      setError("Email and password are required")
-      return
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated()) {
+      const redirect = searchParams.get("redirect") || "/dashboard"
+      router.replace(redirect)
     }
+  }, [router, searchParams])
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      setError("Please enter a valid email address")
-      return
-    }
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: loginFormDefaults,
+  })
 
-    setLoading(true)
-    try {
-      // Call login API
-      const response = await fetch(`${API_BASE_URL}/superadmin/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: email.trim(),
-          password: password,
-        }),
-      })
+  const onSubmit = async (data: LoginFormData) => {
+    setSubmitError("")
 
-      const data: LoginResponse = await response.json()
+    const response = await loginUser(data)
 
-      if (!response.ok) {
-        // Handle API errors
-        const errorMessage = data.error || data.message || `Login failed: ${response.statusText}`
-        setError(errorMessage)
-        return
-      }
+    if (response.success && response.user && response.token) {
+      // Store authentication data securely
+      storeAuthData(response.user, response.token)
 
-      // Login successful
-      // Store authentication token if provided
-      if (data.token) {
-        localStorage.setItem("authToken", data.token)
-      }
+      // Set cookies for middleware (SameSite=Strict for security)
+      document.cookie = `authToken=${response.token.access_token}; path=/; SameSite=Strict`
+      document.cookie = `tokenExpiresAt=${response.token.expires_at}; path=/; SameSite=Strict`
 
-      // Store user information
-      if (data.user) {
-        localStorage.setItem("userEmail", data.user.email)
-        localStorage.setItem("userName", data.user.name)
-        localStorage.setItem("userRole", data.user.role)
-        if (data.user.id) {
-          localStorage.setItem("userId", data.user.id)
-        }
-      } else {
-        // Fallback: store email if user data not provided
-        localStorage.setItem("userEmail", email.trim())
-      }
-
-      // Redirect to dashboard
-      router.push("/dashboard")
-    } catch (err) {
-      console.error("Login error:", err)
-      setError(
-        err instanceof Error
-          ? `Network error: ${err.message}`
-          : "Failed to login. Please check your connection and try again."
-      )
-    } finally {
-      setLoading(false)
+      // Redirect to original destination or dashboard
+      const redirect = searchParams.get("redirect") || "/dashboard"
+      router.push(redirect)
+    } else {
+      setSubmitError(response.error || "Login failed. Please try again.")
     }
   }
 
@@ -133,13 +92,18 @@ export default function LoginPage() {
             Enter your email and password to access your account
           </CardDescription>
         </CardHeader>
-        <form onSubmit={handleSubmit}>
+
+        <form onSubmit={handleSubmit(onSubmit)}>
           <CardContent className="space-y-4">
-            {error && (
-              <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
-                {error}
+            {/* Submit Error */}
+            {submitError && (
+              <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <span>{submitError}</span>
               </div>
             )}
+
+            {/* Email Field */}
             <div className="space-y-2">
               <Label htmlFor="email">
                 Email <span className="text-destructive">*</span>
@@ -148,12 +112,17 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 placeholder="name@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={loading}
+                autoComplete="email"
+                disabled={isSubmitting}
+                {...register("email")}
+                className={errors.email ? "border-destructive" : ""}
               />
+              {errors.email && (
+                <p className="text-xs text-destructive">{errors.email.message}</p>
+              )}
             </div>
+
+            {/* Password Field */}
             <div className="space-y-2">
               <Label htmlFor="password">
                 Password <span className="text-destructive">*</span>
@@ -163,17 +132,18 @@ export default function LoginPage() {
                   id="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  disabled={loading}
-                  className="pr-10"
+                  autoComplete="current-password"
+                  disabled={isSubmitting}
+                  {...register("password")}
+                  className={`pr-10 ${errors.password ? "border-destructive" : ""}`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  disabled={loading}
+                  disabled={isSubmitting}
+                  tabIndex={-1}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
                     <Eye className="h-4 w-4" />
@@ -182,11 +152,15 @@ export default function LoginPage() {
                   )}
                 </button>
               </div>
+              {errors.password && (
+                <p className="text-xs text-destructive">{errors.password.message}</p>
+              )}
             </div>
           </CardContent>
+
           <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? (
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Signing in...
@@ -207,4 +181,3 @@ export default function LoginPage() {
     </div>
   )
 }
-
