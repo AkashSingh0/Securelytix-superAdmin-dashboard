@@ -73,6 +73,7 @@ export function OrganizationForm({
     setValue,
     formState: { errors },
   } = useForm<OrganizationFormData | OrganizationEditData>({
+    // @ts-expect-error - Conditional schema resolver types are incompatible
     resolver: zodResolver(schema),
     defaultValues: {
       ...organizationFormDefaults,
@@ -120,20 +121,21 @@ export function OrganizationForm({
     try {
       if (isEditMode && organizationId) {
         // Update existing organization
+        const editData = data as OrganizationEditData
         const response = await updateOrganization({
           organizationId,
-          legalEntityName: data.legalEntityName,
-          legalType: data.legalType,
-          legalEmail: data.legalEmail || undefined,
-          firstName: data.firstName,
-          lastName: data.lastName || undefined,
-          companyWebsite: data.companyWebsite || undefined,
-          cloudProvider: data.cloudProvider,
-          serverRegion: data.serverRegion,
-          ipWhitelisting: data.ipWhitelisting,
-          gstVatCertificate: data.gstVatCertificate || undefined,
-          panTaxId: data.panTaxId || undefined,
-          authorizationSignatureLetter: data.authorizationSignatureLetter || undefined,
+          legalEntityName: editData.legalEntityName,
+          legalType: editData.legalType,
+          legalEmail: editData.legalEmail || undefined,
+          firstName: editData.firstName,
+          lastName: editData.lastName || undefined,
+          companyWebsite: editData.companyWebsite || undefined,
+          cloudProvider: editData.cloudProvider,
+          serverRegion: editData.serverRegion,
+          ipWhitelisting: editData.ipWhitelisting,
+          gstVatCertificate: editData.gstVatCertificate || undefined,
+          panTaxId: editData.panTaxId || undefined,
+          authorizationSignatureLetter: editData.authorizationSignatureLetter || undefined,
         })
 
         if (response.success) {
@@ -229,6 +231,7 @@ export function OrganizationForm({
         </div>
       )}
 
+      {/* @ts-expect-error - Union type incompatibility with handleSubmit */}
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Organization Details */}

@@ -399,7 +399,7 @@ export default function VaultsListPage() {
                 <DialogTitle>Delete Vault</DialogTitle>
               </div>
               <DialogDescription className="text-left">
-                Are you sure you want to delete <span className="font-medium text-foreground">"{vaultToDelete?.name}"</span>? 
+                Are you sure you want to delete <span className="font-medium text-foreground">&quot;{vaultToDelete?.name}&quot;</span>? 
                 This will permanently remove all {formatRecordCount(vaultToDelete?.recordCount || 0)} records stored in this vault. This action cannot be undone.
               </DialogDescription>
             </DialogHeader>

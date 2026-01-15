@@ -378,7 +378,7 @@ export default function WorkspacesListPage() {
                 <DialogTitle>Delete Workspace</DialogTitle>
               </div>
               <DialogDescription className="text-left">
-                Are you sure you want to delete <span className="font-medium text-foreground">"{workspaceToDelete?.name}"</span>? 
+                Are you sure you want to delete <span className="font-medium text-foreground">&quot;{workspaceToDelete?.name}&quot;</span>? 
                 This will also remove all {workspaceToDelete?.vaultCount || 0} associated vault(s). This action cannot be undone.
               </DialogDescription>
             </DialogHeader>

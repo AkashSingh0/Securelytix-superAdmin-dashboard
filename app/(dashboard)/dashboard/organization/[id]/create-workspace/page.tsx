@@ -1,5 +1,6 @@
 "use client"
 
+import { Suspense } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -7,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Layers, FileText, MapPin, Server } from "lucide-react"
+import { ArrowLeft, Layers, FileText, MapPin, Server, Loader2 } from "lucide-react"
 
 interface OrganizationData {
   id: string
@@ -29,7 +30,7 @@ interface WorkspaceData {
 // Region - only Mumbai available
 const defaultRegion = { value: "mumbai", label: "Mumbai", flag: "🇮🇳" }
 
-export default function CreateWorkspacePage() {
+function CreateWorkspaceContent() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -246,5 +247,24 @@ export default function CreateWorkspacePage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+function CreateWorkspaceLoading() {
+  return (
+    <div className="h-full flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    </div>
+  )
+}
+
+export default function CreateWorkspacePage() {
+  return (
+    <Suspense fallback={<CreateWorkspaceLoading />}>
+      <CreateWorkspaceContent />
+    </Suspense>
   )
 }

@@ -1,12 +1,13 @@
 "use client"
 
+import { Suspense } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, UserCog, ChevronDown, X, Database, TableIcon, Key, Shield } from "lucide-react"
+import { ArrowLeft, UserCog, ChevronDown, X, Database, TableIcon, Key, Shield, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
 interface OrganizationData {
@@ -103,7 +104,7 @@ function MultiSelect({
   )
 }
 
-export default function AddRolePage() {
+function AddRoleContent() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -357,5 +358,24 @@ export default function AddRolePage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+function AddRoleLoading() {
+  return (
+    <div className="h-full flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    </div>
+  )
+}
+
+export default function AddRolePage() {
+  return (
+    <Suspense fallback={<AddRoleLoading />}>
+      <AddRoleContent />
+    </Suspense>
   )
 }
