@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -15,11 +14,14 @@ import { LogOut } from "lucide-react"
 
 interface DashboardHeaderProps {
   userEmail?: string
+  onLogout?: () => void  // Logout function passed from parent
 }
 
-export function DashboardHeader({ userEmail = "user@example.com" }: DashboardHeaderProps) {
+export function DashboardHeader({ 
+  userEmail = "user@example.com",
+  onLogout 
+}: DashboardHeaderProps) {
   const [imageError, setImageError] = useState(false)
-  const router = useRouter()
 
   // Get initials from email
   const getInitials = (email: string) => {
@@ -31,15 +33,6 @@ export function DashboardHeader({ userEmail = "user@example.com" }: DashboardHea
   }
 
   const initials = getInitials(userEmail)
-
-  const handleLogout = () => {
-    // Clear localStorage
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("userEmail")
-    }
-    // Redirect to login page
-    router.push("/login")
-  }
 
   return (
     <header className="border-b bg-card">
@@ -78,7 +71,10 @@ export function DashboardHeader({ userEmail = "user@example.com" }: DashboardHea
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+            <DropdownMenuItem 
+              onClick={onLogout} 
+              className="cursor-pointer text-destructive focus:text-destructive"
+            >
               <LogOut className="mr-2 h-4 w-4" />
               <span>Logout</span>
             </DropdownMenuItem>
@@ -88,4 +84,3 @@ export function DashboardHeader({ userEmail = "user@example.com" }: DashboardHea
     </header>
   )
 }
-

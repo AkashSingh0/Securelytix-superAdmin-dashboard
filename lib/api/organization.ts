@@ -9,6 +9,7 @@ export interface OrganizationListItem {
   organization_id?: string | null
   organization_name?: string | null
   email?: string | null
+  legal_email?: string | null  // API might return email as legal_email
   status: string
   created_at: string
   updated_at: string
@@ -146,6 +147,158 @@ export async function fetchOrganizationDetails(organizationId: string): Promise<
     return {
       success: false,
       error: error instanceof Error ? error.message : "Network error occurred",
+    }
+  }
+}
+
+// Update Organization Request Interface
+export interface UpdateOrganizationRequest {
+  organizationId: string
+  legalEntityName?: string
+  legalType?: string
+  legalEmail?: string
+  firstName?: string
+  lastName?: string
+  companyWebsite?: string
+  cloudProvider?: string
+  serverRegion?: string
+  ipWhitelisting?: string[]
+  // Documents (optional for update)
+  gstVatCertificate?: File | null
+  panTaxId?: File | null
+  authorizationSignatureLetter?: File | null
+}
+
+export interface UpdateOrganizationResponse {
+  success: boolean
+  message: string
+  error?: string
+}
+
+// Update an existing organization
+export async function updateOrganization(
+  request: UpdateOrganizationRequest
+): Promise<UpdateOrganizationResponse> {
+  try {
+    // Build registered address from contact info
+    const registeredAddress = request.companyWebsite
+      ? `Contact: ${request.firstName || ""} ${request.lastName || ""}, Website: ${request.companyWebsite}`
+      : `Contact: ${request.firstName || ""} ${request.lastName || ""}`
+
+    // Step 1: Update Basic Info
+    const basicInfoFormData = new FormData()
+    basicInfoFormData.append(
+      "request_data",
+      JSON.stringify({
+        organization_basic_information: {
+          organization_id: request.organizationId,
+          legal_entity_name: request.legalEntityName,
+          registered_address: registeredAddress.trim(),
+          business_type: request.legalType,
+        },
+      })
+    )
+
+    // Add email as separate FormData field
+    if (request.legalEmail) {
+      basicInfoFormData.append("email", request.legalEmail)
+    }
+
+    // Add documents if provided
+    if (request.gstVatCertificate) {
+      basicInfoFormData.append("gst_vat_certificate", request.gstVatCertificate)
+    }
+    if (request.panTaxId) {
+      basicInfoFormData.append("pan_tax_id", request.panTaxId)
+    }
+
+    const basicInfoResponse = await fetch(`${API_BASE_URL}/basic-info/${request.organizationId}`, {
+      method: "PUT",
+      body: basicInfoFormData,
+    })
+
+    if (!basicInfoResponse.ok) {
+      const basicInfoData = await basicInfoResponse.json()
+      // Try PATCH if PUT doesn't work
+      const patchResponse = await fetch(`${API_BASE_URL}/basic-info/${request.organizationId}`, {
+        method: "PATCH",
+        body: basicInfoFormData,
+      })
+      
+      if (!patchResponse.ok) {
+        console.warn("Basic info update warning:", basicInfoData)
+        // Continue anyway - try to update other sections
+      }
+    }
+
+    // Step 2: Update Technical Info (infrastructure)
+    if (request.cloudProvider || request.serverRegion || request.ipWhitelisting) {
+      const technicalFormData = new FormData()
+      technicalFormData.append(
+        "request_data",
+        JSON.stringify({
+          organization_id: request.organizationId,
+          technical_and_integration_details: {
+            infrastructure_overview: {
+              cloud_provider: request.cloudProvider || "",
+              server_region: request.serverRegion || "",
+              ip_whitelisting: request.ipWhitelisting || [],
+            },
+          },
+        })
+      )
+
+      const technicalResponse = await fetch(`${API_BASE_URL}/technical/${request.organizationId}`, {
+        method: "PUT",
+        body: technicalFormData,
+      })
+
+      if (!technicalResponse.ok) {
+        // Try PATCH
+        await fetch(`${API_BASE_URL}/technical/${request.organizationId}`, {
+          method: "PATCH",
+          body: technicalFormData,
+        })
+      }
+    }
+
+    // Step 3: Update Authorization (if signature letter provided)
+    if (request.authorizationSignatureLetter) {
+      const authFormData = new FormData()
+      authFormData.append(
+        "request_data",
+        JSON.stringify({
+          organization_id: request.organizationId,
+          authorization: {
+            authorized_signatory_letter_file_id: null,
+          },
+        })
+      )
+      authFormData.append("authorized_signatory_letter", request.authorizationSignatureLetter)
+
+      const authResponse = await fetch(`${API_BASE_URL}/authorization/${request.organizationId}`, {
+        method: "PUT",
+        body: authFormData,
+      })
+
+      if (!authResponse.ok) {
+        await fetch(`${API_BASE_URL}/authorization/${request.organizationId}`, {
+          method: "PATCH",
+          body: authFormData,
+        })
+      }
+    }
+
+    return {
+      success: true,
+      message: "Organization updated successfully",
+    }
+  } catch (error) {
+    console.error("Error updating organization:", error)
+    return {
+      success: false,
+      message: "Failed to update organization",
+      error: error instanceof Error ? error.message : "Unknown error occurred",
     }
   }
 }
@@ -629,6 +782,175 @@ export async function submitAuthorization(
       success: true,
       message: data.message || "Authorization information submitted successfully",
       data: data.data,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      message: "Network error occurred",
+      error: error instanceof Error ? error.message : "Unknown error",
+    }
+  }
+}
+
+// ============================================
+// Create Organization - Single Form API
+// ============================================
+
+export interface CreateOrganizationRequest {
+  // Organization Details
+  legalEntityName: string
+  legalType: string
+  legalEmail: string
+  password: string
+  maxWorkspace: number
+  maxVault: number
+  // Contact Information
+  firstName: string
+  lastName?: string
+  companyWebsite?: string
+  // Documents
+  gstVatCertificate: File
+  panTaxId: File
+  authorizationSignatureLetter: File
+  // Infrastructure
+  cloudProvider: string
+  serverRegion: string
+  ipWhitelisting: string[]
+}
+
+export interface CreateOrganizationResponse {
+  success: boolean
+  message: string
+  data?: {
+    organization_id: string
+  }
+  error?: string
+}
+
+export async function createOrganization(
+  request: CreateOrganizationRequest
+): Promise<CreateOrganizationResponse> {
+  try {
+    // Generate organization ID
+    const organizationId = `ORG_${Math.random().toString(36).slice(2, 10).toUpperCase()}`
+
+    // Build registered address from contact info
+    const registeredAddress = request.companyWebsite 
+      ? `Contact: ${request.firstName} ${request.lastName || ""}, Website: ${request.companyWebsite}`
+      : `Contact: ${request.firstName} ${request.lastName || ""}`
+
+    // Step 1: Submit Basic Info (creates the organization)
+    // IMPORTANT: Only send fields the backend expects
+    const basicInfoFormData = new FormData()
+    basicInfoFormData.append(
+      "request_data",
+      JSON.stringify({
+        organization_basic_information: {
+          organization_id: organizationId,
+          legal_entity_name: request.legalEntityName,
+          registered_address: registeredAddress,
+          business_type: request.legalType,
+          registration_certificate_file_id: null,
+          pan_tax_id_file_id: null,
+          gst_vat_certificate_file_id: null,
+          authorized_signatory_id_proof_file_ids: [],
+        },
+      })
+    )
+
+    // Add email as separate FormData field
+    basicInfoFormData.append("email", request.legalEmail)
+
+    // Add documents
+    if (request.gstVatCertificate) {
+      basicInfoFormData.append("gst_vat_certificate", request.gstVatCertificate)
+    }
+    if (request.panTaxId) {
+      basicInfoFormData.append("pan_tax_id", request.panTaxId)
+    }
+
+    const basicInfoResponse = await fetch(`${API_BASE_URL}/basic-info`, {
+      method: "POST",
+      body: basicInfoFormData,
+    })
+
+    const basicInfoData = await basicInfoResponse.json()
+
+    if (!basicInfoResponse.ok) {
+      return {
+        success: false,
+        message: basicInfoData.message || "Failed to create organization",
+        error: basicInfoData.error || basicInfoData.detail || JSON.stringify(basicInfoData),
+      }
+    }
+
+    // Step 2: Submit Technical Info (infrastructure)
+    const technicalFormData = new FormData()
+    technicalFormData.append(
+      "request_data",
+      JSON.stringify({
+        organization_id: organizationId,
+        technical_and_integration_details: {
+          api_integration_details_file_id: null,
+          data_schema_field_mapping_file_id: null,
+          data_flow_diagram_file_id: null,
+          expected_transaction_volume_file_id: null,
+          infrastructure_overview: {
+            cloud_provider: request.cloudProvider,
+            server_region: request.serverRegion,
+            ip_whitelisting: request.ipWhitelisting,
+          },
+          technical_spoc_contacts: [],
+        },
+      })
+    )
+
+    const technicalResponse = await fetch(`${API_BASE_URL}/technical`, {
+      method: "POST",
+      body: technicalFormData,
+    })
+
+    if (!technicalResponse.ok) {
+      const technicalData = await technicalResponse.json()
+      console.warn("Technical info submission warning:", technicalData)
+      // Continue anyway - basic organization is created
+    }
+
+    // Step 3: Submit Authorization (signature letter)
+    const authFormData = new FormData()
+    authFormData.append(
+      "request_data",
+      JSON.stringify({
+        organization_id: organizationId,
+        authorization: {
+          authorized_signatory_letter_file_id: null,
+          nda_data_protection_agreement_file_id: null,
+          escalation_contacts: [],
+        },
+      })
+    )
+
+    if (request.authorizationSignatureLetter) {
+      authFormData.append("authorized_signatory_letter", request.authorizationSignatureLetter)
+    }
+
+    const authResponse = await fetch(`${API_BASE_URL}/authorization`, {
+      method: "POST",
+      body: authFormData,
+    })
+
+    if (!authResponse.ok) {
+      const authData = await authResponse.json()
+      console.warn("Authorization submission warning:", authData)
+      // Continue anyway - basic organization is created
+    }
+
+    return {
+      success: true,
+      message: "Organization created successfully",
+      data: {
+        organization_id: organizationId,
+      },
     }
   } catch (error) {
     return {

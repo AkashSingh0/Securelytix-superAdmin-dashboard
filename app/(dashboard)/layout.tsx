@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { useState, useEffect } from "react"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { SearchFilterProvider } from "@/contexts/search-filter-context"
+import { useRequireAuth } from "@/lib/hooks/useAuth"
+import { Loader2 } from "lucide-react"
 import { 
   ChevronDown, 
   ChevronRight, 
@@ -31,6 +33,9 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname()
   const router = useRouter()
+  
+  // Auth check with auto-logout
+  const { user, isLoading, isLoggedIn, logout } = useRequireAuth()
 
   const navItems = [
     { label: "Billing", path: "/dashboard/billing", icon: CreditCard },
@@ -82,24 +87,31 @@ export default function DashboardLayout({
     }
   }, [pathname])
 
-  // Get user email from localStorage (set during login)
-  const [userEmail, setUserEmail] = useState("user@example.com")
-  
-  // Load email from localStorage on mount
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedEmail = localStorage.getItem("userEmail")
-      if (storedEmail) {
-        setUserEmail(storedEmail)
-      }
-    }
-  }, [])
+  // Get user email from auth state
+  const userEmail = user?.email || "user@example.com"
+
+  // Show loading state while checking auth
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Don't render if not logged in (redirect is handled by useRequireAuth)
+  if (!isLoggedIn) {
+    return null
+  }
 
   return (
     <SearchFilterProvider>
       <div className="flex flex-col h-screen bg-background">
         {/* Header */}
-        <DashboardHeader userEmail={userEmail} />
+        <DashboardHeader userEmail={userEmail} onLogout={logout} />
 
         <div className="flex flex-1 overflow-hidden">
       {/* Left Sidebar */}
@@ -235,7 +247,7 @@ export default function DashboardLayout({
       {/* Main Content Area */}
       <main className={`flex-1 ${pathname?.startsWith("/dashboard/leads/") || pathname?.startsWith("/dashboard/contact-us/") || pathname?.startsWith("/dashboard/registrations/") || pathname?.startsWith("/dashboard/organization/") ? "overflow-hidden" : "overflow-y-auto p-6"}`}>
         {pathname?.startsWith("/dashboard/leads/") || pathname?.startsWith("/dashboard/contact-us/") || pathname?.startsWith("/dashboard/registrations/") || pathname?.startsWith("/dashboard/organization/") ? (
-          <div className="h-full p-6 overflow-y-auto">
+          <div className="h-full px-6 pt-6 overflow-y-auto">
             {children}
           </div>
         ) : (
